@@ -1,0 +1,205 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="dashboard-grid">
+    <!-- Left main panel -->
+    <div class="left-panel">
+        <div class="summary-cards">
+            <div class="card balance-card">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                    <div>
+                        <h3>Current Balance</h3>
+                        <p class="amount">${{ "%.2f"|format(summary.balance|default(0)) }}</p>
+                    </div>
+                    <div class="icon-circle filled" style="background: rgba(255,255,255,0.2);"><i class="ph ph-wallet" style="color: white;"></i></div>
+                </div>
+                <div class="budget-section" style="margin-top: 1.5rem;">
+                    <div style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 5px;">
+                        <span>Monthly Budget</span>
+                        <span>{{ "%.0f"|format((summary.current_month_expense / budget * 100) if budget > 0 else 0) }}%</span>
+                    </div>
+                    <div class="progress-bar" style="height: 6px; background: rgba(255,255,255,0.3); border-radius: 10px; overflow: hidden;">
+                        <div class="progress-fill" style="height: 100%; background: white; width: {{ (summary.current_month_expense / budget * 100) if budget > 0 else 0 }}%; transition: width 0.5s ease;"></div>
+                    </div>
+                    <p style="font-size: 0.75rem; margin-top: 5px; opacity: 0.8;">Spent ${{ "%.2f"|format(summary.current_month_expense) }} of ${{ "%.2f"|format(budget) }}</p>
+                </div>
+            </div>
+            <div class="card income-card">
+                <h3>Total Income</h3>
+                <p class="amount text-success">${{ "%.2f"|format(summary.income|default(0)) }}</p>
+                <span class="trend trend-up"><i class="ph ph-trend-up"></i> Total Lifetime</span>
+            </div>
+            <div class="card expense-card">
+                <h3>Total Expenses</h3>
+                <p class="amount text-danger">${{ "%.2f"|format(summary.expense|default(0)) }}</p>
+                <span class="trend trend-down"><i class="ph ph-trend-down"></i> Total Lifetime</span>
+            </div>
+        </div>
+
+        <div class="chart-card">
+            <div class="section-header">
+                <h2>Income vs Expenses</h2>
+                <div class="chart-legend" style="display: flex; gap: 15px; font-size: 0.8rem;">
+                    <span style="display: flex; align-items: center; gap: 5px;"><div style="width: 10px; height: 10px; background: #6d28d9; border-radius: 2px;"></div> Income</span>
+                    <span style="display: flex; align-items: center; gap: 5px;"><div style="width: 10px; height: 10px; background: #06b6d4; border-radius: 2px;"></div> Expense</span>
+                </div>
+            </div>
+            
+            <div style="position: relative; height: 300px; padding: 10px 0;">
+                <canvas id="dashboardChart"></canvas>
+            </div>
+        </div>
+
+        <div class="donuts-card">
+            <div class="section-header">
+                <h2>Expenses by Category</h2>
+            </div>
+            <div class="donuts-container" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 15px;">
+                {% for cat in category_distribution[:4] %}
+                <div class="donut-item" style="background: white; padding: 1rem; border-radius: 12px; border: 1px solid var(--border); text-align: left;">
+                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                        <div class="icon-circle" style="width: 30px; height: 30px; font-size: 0.9rem; background: #f1f5f9;"><i class="ph ph-tag"></i></div>
+                        <span style="font-size: 0.8rem; font-weight: 600; color: #64748b;">{{ cat.category }}</span>
+                    </div>
+                    <div style="font-size: 1.2rem; font-weight: 700; color: #0f172a;">${{ "%.2f"|format(cat.total) }}</div>
+                </div>
+                {% endfor %}
+                {% if not category_distribution %}
+                <div style="grid-column: 1/-1; padding: 2rem; text-align: center; color: var(--text-secondary);">No expense data yet.</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Right side panel: Latest Transactions -->
+    <div class="right-panel">
+        <div class="card" style="padding: 0; display: flex; flex-direction: column;">
+            <div class="section-header" style="padding: 1.5rem 1.5rem 0 1.5rem;">
+                <h2>Recent Transactions</h2>
+            </div>
+            
+            <form action="{{ url_for('index') }}" method="GET" style="padding: 0 1.5rem 1rem 1.5rem; border-bottom: 1px solid var(--border); display: flex; gap: 10px; align-items: center;">
+                <div style="flex: 1; position: relative;">
+                    <i class="ph ph-magnifying-glass" style="position: absolute; left: 10px; top: 10px; color: var(--text-secondary);"></i>
+                    <input type="text" name="search" placeholder="Search..." value="{{ search or '' }}" class="form-control" style="padding-left: 35px; border-radius: 6px; padding-top: 0.5rem; padding-bottom: 0.5rem; font-size: 0.85rem;">
+                </div>
+                <button type="submit" class="btn" style="padding: 0.5rem 1rem; background: #f1f5f9; border: 1px solid #e2e8f0; color: #475569;"><i class="ph ph-funnel"></i></button>
+                <a href="{{ url_for('export_csv') }}" class="btn" title="Export CSV" style="padding: 0.5rem; background: #f1f5f9; border: 1px solid #e2e8f0; color: #475569;"><i class="ph ph-download-simple"></i></a>
+            </form>
+
+            <div class="table-container" style="flex: 1; border-radius: 0; border: none; overflow-y: auto; max-height: 500px;">
+                <table style="width: 100%;">
+                    <thead>
+                        <tr>
+                            <th style="padding-left: 1.5rem;">NAME</th>
+                            <th>AMOUNT</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if transactions %}
+                            {% for t in transactions %}
+                            <tr>
+                                <td style="padding-left: 1.5rem; display: flex; align-items: center; gap: 12px; padding-top: 12px; padding-bottom: 12px;">
+                                    <div class="avatar" style="width: 38px; height: 38px; font-size: 1rem; border-radius: 10px; background-color: {% if t.type == 'income' %}#dcfce7{% else %}#fee2e2{% endif %}; color: {% if t.type == 'income' %}#166534{% else %}#991b1b{% endif %};">
+                                        {{ t.description[0]|upper if t.description else t.category[0]|upper }}
+                                    </div>
+                                    <div style="display: flex; flex-direction: column;">
+                                        <span style="font-weight: 600; color: #1e293b; font-size: 0.9rem;">{{ t.description or t.category }}</span>
+                                        <span style="color: #94a3b8; font-size: 0.75rem;">{{ t.date[:10] }} • {{ t.category }}</span>
+                                    </div>
+                                </td>
+                                <td style="font-weight: 700; font-size: 0.95rem;" class="{% if t.type == 'income' %}text-success{% else %}text-danger{% endif %}">
+                                    {{ '+' if t.type == 'income' else '-' }}${{ "%.2f"|format(t.amount) }}
+                                </td>
+                                <td class="actions-cell">
+                                    <div style="display: flex; gap: 5px;">
+                                        <a href="{{ url_for('edit', id=t.id) }}" class="btn-action" style="color: #64748b;"><i class="ph ph-pencil-simple"></i></a>
+                                        <form action="{{ url_for('delete', id=t.id) }}" method="POST" style="display:inline;">
+                                            <button type="submit" class="btn-action" style="color: #ef4444; border:none; background:none; cursor:pointer;" onclick="return confirm('Are you sure?');"><i class="ph ph-trash"></i></button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="3" style="padding: 3rem; text-align: center; color: #94a3b8;">
+                                    <i class="ph ph-receipt" style="font-size: 3rem; opacity: 0.2; margin-bottom: 1rem; display: block;"></i>
+                                    No transactions found
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+            <div style="padding: 1.5rem;">
+                 <a href="{{ url_for('add') }}" class="btn btn-primary" style="width: 100%; border-radius: 10px; padding: 0.8rem; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 10px; background: #0f172a; border: none; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+                    <i class="ph ph-plus-circle" style="font-size: 1.2rem;"></i> New Transaction
+                 </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const ctx = document.getElementById('dashboardChart');
+        if (!ctx) return;
+        
+        const monthlyData = {{ monthly_overview|tojson }};
+        const labels = monthlyData.map(d => {
+            const date = new Date(d.month + '-01');
+            return date.toLocaleString('default', { month: 'short' });
+        });
+        const incomeData = monthlyData.map(d => d.income);
+        const expenseData = monthlyData.map(d => d.expense);
+
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels.length ? labels : ['No Data'],
+                datasets: [
+                    {
+                        label: 'Income',
+                        data: incomeData.length ? incomeData : [0],
+                        backgroundColor: '#6d28d9',
+                        borderRadius: 6,
+                        barPercentage: 0.6,
+                    },
+                    {
+                        label: 'Expenses',
+                        data: expenseData.length ? expenseData : [0],
+                        backgroundColor: '#06b6d4',
+                        borderRadius: 6,
+                        barPercentage: 0.6,
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) { return '$' + value; },
+                            color: '#94a3b8',
+                            font: { size: 11 }
+                        },
+                        grid: { color: '#f1f5f9', drawBorder: false }
+                    },
+                    x: {
+                        ticks: { color: '#94a3b8', font: { size: 11 } },
+                        grid: { display: false }
+                    }
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}

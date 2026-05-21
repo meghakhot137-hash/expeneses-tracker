@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Expense Tracker</title>
+    <!-- Use Phosphor icons or similar for the nice lightweight outline icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="{% if not session.get('user_id') %}login-page{% endif %}">
+    <div class="app-container">
+        {% if session.get('user_id') %}
+        <aside class="sidebar">
+            <div class="logo">
+                <i class="ph ph-lightning logo-icon" style="color: #6366f1;"></i>
+                <span>EXTRACK</span>
+            </div>
+            <nav>
+                <a href="{{ url_for('index') }}" class="nav-item {% if request.path == '/' %}active{% endif %}">
+                    <i class="ph ph-house"></i> Overview
+                </a>
+                <a href="{{ url_for('report') }}" class="nav-item {% if request.path == '/report' %}active{% endif %}">
+                    <i class="ph ph-chart-pie"></i> Analytics
+                </a>
+                <a href="{{ url_for('add') }}" class="nav-item {% if request.path == '/add' %}active{% endif %}">
+                    <i class="ph ph-plus-circle"></i> Add Entry
+                </a>
+                <div style="margin: 1rem 0; height: 1px; background: rgba(255,255,255,0.1);"></div>
+                <a href="{{ url_for('settings') }}" class="nav-item {% if request.path == '/settings' %}active{% endif %}">
+                    <i class="ph ph-sliders"></i> Settings
+                </a>
+                <a href="{{ url_for('logout') }}" class="nav-item" style="margin-top: auto; color: #fca5a5;">
+                    <i class="ph ph-power"></i> Sign Out
+                </a>
+            </nav>
+        </aside>
+        {% endif %}
+
+        <main class="main-content" {% if not session.get('user_id') %}style="align-items: center; justify-content: center; width: 100%;"{% endif %}>
+            {% if session.get('user_id') %}
+            <header class="topbar">
+                <div class="header-titles">
+                    <h1 style="font-size: 1.8rem; letter-spacing: -0.5px;">Financial Overview</h1>
+                    <p style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 5px;">Welcome back, {{ session.get('username') }}! Here's what's happening with your money.</p>
+                </div>
+                <div class="user-profile" style="display: flex; align-items: center; gap: 20px;">
+                    <div class="top-icons">
+                        <a href="{{ url_for('add') }}" class="icon-circle filled" style="text-decoration: none;"><i class="ph ph-plus"></i></a>
+                        <button class="icon-circle"><i class="ph ph-bell"></i></button>
+                        <button class="icon-circle"><i class="ph ph-magnifying-glass"></i></button>
+                    </div>
+                    <div style="width: 1px; height: 30px; background: var(--border);"></div>
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div class="avatar">
+                            <img src="https://ui-avatars.com/api/?name={{ session.get('username', 'User') }}&background=6366f1&color=fff&bold=true" alt="avatar">
+                        </div>
+                        <div style="display: flex; flex-direction: column;">
+                            <span style="font-weight: 600; color: #0f172a; font-size: 0.95rem;">{{ session.get('username') }}</span>
+                            <span style="color: var(--text-secondary); font-size: 0.75rem;">Premium Account</span>
+                        </div>
+                    </div>
+                    <a href="{{ url_for('logout') }}" class="btn-action" title="Logout" style="color: var(--danger); margin-left:10px;">
+                        <i class="ph ph-sign-out" style="font-size: 1.4rem;"></i>
+                    </a>
+                </div>
+            </header>
+            {% else %}
+            <!-- Show something elegant if logged out -->
+            <header style="padding: 2rem; width: 100%; text-align: center; margin-bottom: 2rem;">
+                <h1 style="color: var(--sidebar-bg); font-size: 3rem; letter-spacing: 2px; font-weight: 700;">EXTRACK</h1>
+                <p style="color: var(--text-secondary); margin-top: 1rem; font-size: 1.1rem;">Manage your finances professionally</p>
+            </header>
+            {% endif %}
+
+            <div class="content-area" {% if not session.get('user_id') %}style="width: 100%; max-width: 500px; padding: 2rem;"{% endif %}>
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                  {% if messages %}
+                    <div class="flash-messages">
+                    {% for category, message in messages %}
+                      <div class="alert alert-{{ category }}">{{ message }}</div>
+                    {% endfor %}
+                    </div>
+                  {% endif %}
+                {% endwith %}
+
+                {% block content %}{% endblock %}
+            </div>
+        </main>
+    </div>
+</body>
+</html>
